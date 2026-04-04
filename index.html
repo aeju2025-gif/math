@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>뺄셈 기록 도전 - 전체 기록 모드</title>
+    <style>
+        :root { --blue: #007AFF; --orange: #FF9500; --purple: #AF52DE; --bg: #F2F2F7; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: manipulation; }
+        #app { width: 100%; max-width: 400px; background: white; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 20px; box-sizing: border-box; text-align: center; }
+        
+        h1 { font-size: 26px; font-weight: 900; margin-bottom: 20px; }
+        .stats-summary { background: rgba(255, 149, 0, 0.1); border-radius: 20px; padding: 15px; display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .stat-item span { display: block; font-size: 11px; color: #888; }
+        .stat-item b { font-size: 16px; color: #333; }
+
+        .setup-box { background: rgba(0, 122, 255, 0.05); border-radius: 15px; padding: 15px; margin-bottom: 20px; text-align: left; }
+        .setup-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; }
+        select, input[type="number"] { padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
+
+        .game-info { display: flex; justify-content: space-between; align-items: center; background: #eee; padding: 10px 20px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; }
+        .problem { font-size: 44px; font-weight: 900; margin: 30px 0; }
+        .answer-box { display: inline-block; width: 90px; height: 55px; background: rgba(0,122,255,0.1); border-radius: 12px; line-height: 55px; vertical-align: middle; }
+        .feedback { height: 24px; margin-bottom: 20px; font-weight: bold; }
+
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .key { background: #f0f0f0; border: none; border-radius: 12px; padding: 18px; font-size: 22px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .key:active { background: #ddd; }
+        .key.blue { background: var(--blue); color: white; }
+        .key.red { background: rgba(255,59,48,0.1); color: #FF3B30; }
+
+        .btn-main { width: 100%; padding: 15px; border-radius: 15px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-start { background: var(--blue); color: white; }
+        .btn-stats { background: none; color: var(--blue); font-size: 15px; margin-top: 10px; }
+
+        .hidden { display: none; }
+        
+        /* 기록 모달창 스타일 */
+        #stats-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th, .stats-table td { padding: 12px 5px; border-bottom: 1px solid #eee; text-align: center; font-size: 13px; }
+        .fav-cond { font-size: 11px; color: var(--purple); font-weight: bold; display: block; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="view-start">
+        <h1>🚀 뺄셈 기록 도전</h1>
+        <div class="stats-summary">
+            <div class="stat-item"><span>오늘 완주</span><b id="today-count">0회</b></div>
+            <div class="stat-item"><span>오늘 평균</span><b id="today-avg">-</b></div>
+            <div class="stat-item"><span>오늘 최고</span><b id="today-best">-</b></div>
+        </div>
+        <div class="setup-box">
+            <div class="setup-row">
+                <label>빼는 수:</label>
+                <select id="subtrahend" onchange="updateGlobalBest()">
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                    <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                </select>
+            </div>
+            <div class="setup-row">
+                <label>최대 범위:</label>
+                <input type="number" id="max-range" value="10" min="2" onchange="updateGlobalBest()">
+            </div>
+            <div id="global-best-text" style="color:var(--purple); font-weight:bold; font-size:13px; text-align:center;"></div>
+        </div>
+        <button class="btn-main btn-start" onclick="startGame()">도전 시작!</button>
+        <button class="btn-stats" onclick="toggleStats(true)">💾 모든 기록 & 최애 조건 보기</button>
+    </div>
+
+    <div id="view-game" class="hidden">
+        <div class="game-info">
+            <span id="progress">진행: 0 / 20</span>
+            <span id="timer">0.0s</span>
+        </div>
+        <div class="problem">
+            <span id="q-text">5 - 1 =</span>
+            <div class="answer-box" id="user-answer">?</div>
+        </div>
+        <div class="feedback" id="feedback"></div>
+        <div class="keypad">
+            <script>
+                for(let i=1; i<=9; i++) document.write(`<button class="key" onclick="press('${i}')">${i}</button>`);
+            </script>
+            <button class="key red" onclick="press('C')">C</button>
+            <button class="key" onclick="press('0')">0</button>
+            <button class="key blue" onclick="press('OK')">확인</button>
+        </div>
+    </div>
+
+    <div id="view-result" class="hidden">
+        <h1 style="color:var(--orange)">🎊 20문제 완주! 🎊</h1>
+        <div style="background:rgba(0,122,255,0.05); padding:30px; border-radius:20px; margin-bottom:20px">
+            <div id="final-time" style="font-size:40px; font-weight:900">0.00초</div>
+            <div id="new-record" style="color:var(--purple); font-weight:bold; margin-top:10px" class="hidden">👑 역대 신기록입니다!</div>
+        </div>
+        <button class="btn-main btn-start" style="background:#34C759" onclick="goHome()">확인</button>
+    </div>
+</div>
+
+<div id="stats-modal" class="hidden">
+    <div class="modal-header">
+        <h2 style="margin:0">📊 전체 기록 분석</h2>
+        <button onclick="toggleStats(false)" style="border:none; background:none; font-size:24px; cursor:pointer">✕</button>
+    </div>
+    <table class="stats-table">
+        <thead>
+            <tr><th>날짜</th><th>횟수</th><th>평균/최고</th><th>가장 많이 한 조건</th></tr>
+        </thead>
+        <tbody id="stats-body"></tbody>
+    </table>
+</div>
+
+<script>
+    let questionCount = 0;
+    let timeElapsed = 0;
+    let timerInterval;
+    let currentMinuend, currentSubtrahend;
+    let userAnswer = "";
+    let isPlaying = false;
+
+    const BEST_KEY = "best_records_v7";
+    const LOG_KEY = "session_logs_v7"; // V7: 조건 데이터를 포함한 새로운 저장 방식
+
+    window.onload = () => {
+        updateSummary();
+        updateGlobalBest();
+    };
+
+    function startGame() {
+        const sub = parseInt(document.getElementById('subtrahend').value);
+        const max = parseInt(document.getElementById('max-range').value);
+        if(max <= sub) return alert("최대 범위는 빼는 수보다 커야 합니다.");
+        
+        currentSubtrahend = sub;
+        questionCount = 0;
+        timeElapsed = 0;
+        isPlaying = true;
+        
+        showView('view-game');
+        nextProblem();
+        
+        timerInterval = setInterval(() => {
+            timeElapsed += 0.1;
+            document.getElementById('timer').innerText = timeElapsed.toFixed(1) + 's';
+        }, 100);
+    }
+
+    function nextProblem() {
+        const max = parseInt(document.getElementById('max-range').value);
+        currentMinuend = Math.floor(Math.random() * (max - currentSubtrahend + 1)) + currentSubtrahend;
+        userAnswer = "";
+        document.getElementById('q-text').innerText = `${currentMinuend} - ${currentSubtrahend} =`;
+        document.getElementById('user-answer').innerText = "?";
+        document.getElementById('progress').innerText = `진행: ${questionCount} / 20`;
+        document.getElementById('feedback').innerText = "";
+    }
+
+    function press(key) {
+        if(key === 'C') {
+            userAnswer = "";
+            document.getElementById('user-answer').innerText = "?";
+            return;
+        } else if(key === 'OK') {
+            checkAnswer();
+            return;
+        } else {
+            if(userAnswer.length < 3) userAnswer += key;
+        }
+        document.getElementById('user-answer').innerText = userAnswer;
+
+        // 자동 정답 체크
+        const correct = currentMinuend - currentSubtrahend;
+        if (parseInt(userAnswer) === correct) {
+            document.getElementById('feedback').innerText = "정답!";
+            document.getElementById('feedback').style.color = "#34C759";
+            questionCount++;
+            setTimeout(() => {
+                if(questionCount >= 20) finishGame();
+                else nextProblem();
+            }, 100);
+        }
+    }
+
+    function checkAnswer() {
+        const correct = currentMinuend - currentSubtrahend;
+        if(parseInt(userAnswer) !== correct) {
+            document.getElementById('feedback').innerText = "틀렸어요!";
+            document.getElementById('feedback').style.color = "#FF3B30";
+            userAnswer = "";
+            document.getElementById('user-answer').innerText = "?";
+        }
+    }
+
+    function finishGame() {
+        clearInterval(timerInterval);
+        isPlaying = false;
+        const sub = currentSubtrahend;
+        const max = parseInt(document.getElementById('max-range').value);
+        const recordKey = `sub_${sub}_max_${max}`;
+        const finalTime = parseFloat(timeElapsed.toFixed(2));
+        
+        // 1. 최고 기록 저장
+        let bests = JSON.parse(localStorage.getItem(BEST_KEY) || "{}");
+        let isNewRecord = false;
+        if(!bests[recordKey] || finalTime < bests[recordKey]) {
+            bests[recordKey] = finalTime;
+            localStorage.setItem(BEST_KEY, JSON.stringify(bests));
+            isNewRecord = true;
+        }
+
+        // 2. 일일 로그 저장 (조건 정보 포함)
+        const today = new Date().toISOString().split('T')[0];
+        let logs = JSON.parse(localStorage.getItem(LOG_KEY) || "{}");
+        if(!logs[today]) logs[today] = [];
+        logs[today].push({
+            time: finalTime,
+            sub: sub,
+            max: max
+        });
+        localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+
+        document.getElementById('final-time').innerText = finalTime.toFixed(2) + '초';
+        document.getElementById('new-record').className = isNewRecord ? "" : "hidden";
+        showView('view-result');
+    }
+
+    function updateSummary() {
+        const today = new Date().toISOString().split('T')[0];
+        const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "{}");
+        const todaySessions = logs[today] || [];
+        
+        document.getElementById('today-count').innerText = todaySessions.length + '회';
+        if(todaySessions.length > 0) {
+            const times = todaySessions.map(s => s.time);
+            const avg = times.reduce((a,b)=>a+b, 0) / times.length;
+            const best = Math.min(...times);
+            document.getElementById('today-avg').innerText = avg.toFixed(2) + 's';
+            document.getElementById('today-best').innerText = best.toFixed(2) + 's';
+        } else {
+            document.getElementById('today-avg').innerText = '-';
+            document.getElementById('today-best').innerText = '-';
+        }
+    }
+
+    function updateGlobalBest() {
+        const sub = document.getElementById('subtrahend').value;
+        const max = document.getElementById('max-range').value;
+        const bests = JSON.parse(localStorage.getItem(BEST_KEY) || "{}");
+        const best = bests[`sub_${sub}_max_${max}`];
+        document.getElementById('global-best-text').innerText = best ? `현재 설정 역대 최고: ${best}s` : "";
+    }
+
+    function toggleStats(show) {
+        if(show) {
+            const body = document.getElementById('stats-body');
+            body.innerHTML = "";
+            const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "{}");
+            
+            // 모든 날짜 역순 정렬
+            const sortedDates = Object.keys(logs).sort().reverse();
+            
+            if (sortedDates.length === 0) {
+                body.innerHTML = "<tr><td colspan='4'>아직 기록이 없습니다.</td></tr>";
+            }
+
+            sortedDates.forEach(date => {
+                const sessions = logs[date];
+                const times = sessions.map(s => s.time);
+                const avg = (times.reduce((a,b)=>a+b,0)/times.length).toFixed(2);
+                const best = Math.min(...times).toFixed(2);
+                
+                // 최애 조건 분석 (가장 많이 한 sub와 max 조합)
+                const counts = {};
+                sessions.forEach(s => {
+                    const key = `-${s.sub} (Max ${s.max})`;
+                    counts[key] = (counts[key] || 0) + 1;
+                });
+                const favCondition = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+
+                body.innerHTML += `
+                    <tr>
+                        <td><b>${date.slice(5)}</b></td>
+                        <td>${sessions.length}회</td>
+                        <td><span style="color:var(--blue)">${avg}s</span><br><span style="color:var(--orange); font-weight:bold">${best}s</span></td>
+                        <td><span class="fav-cond">빼는수 ${favCondition}</span></td>
+                    </tr>`;
+            });
+            document.getElementById('stats-modal').classList.remove('hidden');
+        } else {
+            document.getElementById('stats-modal').classList.add('hidden');
+        }
+    }
+
+    function showView(id) {
+        ['view-start', 'view-game', 'view-result'].forEach(v => document.getElementById(v).classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    function goHome() {
+        updateSummary();
+        updateGlobalBest();
+        showView('view-start');
+    }
+</script>
+</body>
+</html>
