@@ -2,198 +2,310 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>학생 실천 기록 관리 시스템 v3</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>뺄셈 기록 도전 - 전체 기록 모드</title>
     <style>
-        :root { --primary: #4a90e2; --teacher: #2c3e50; --bg: #f0f2f5; --danger: #e74c3c; --success: #27ae60; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; }
-        .container { width: 100%; max-width: 1100px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-        .login-box, .app-content { display: none; }
-        .active { display: block; }
+        :root { --blue: #007AFF; --orange: #FF9500; --purple: #AF52DE; --bg: #F2F2F7; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; touch-action: manipulation; }
+        #app { width: 100%; max-width: 400px; background: white; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 20px; box-sizing: border-box; text-align: center; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px; }
-        th { background: #f8f9fa; }
-        
-        button { padding: 8px 12px; border-radius: 6px; border: none; cursor: pointer; color: white; font-weight: bold; }
-        .btn-primary { background: var(--primary); }
-        .btn-danger { background: var(--danger); }
-        .btn-success { background: var(--success); }
-        .btn-gray { background: #6c757d; }
+        h1 { font-size: 26px; font-weight: 900; margin-bottom: 20px; }
+        .stats-summary { background: rgba(255, 149, 0, 0.1); border-radius: 20px; padding: 15px; display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .stat-item span { display: block; font-size: 11px; color: #888; }
+        .stat-item b { font-size: 16px; color: #333; }
 
-        .student-card { margin-bottom: 30px; border: 1px solid #e1e4e8; border-radius: 10px; overflow: hidden; position: relative; }
-        .student-header { background: var(--teacher); color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .today-highlight { background: #fff9db; border: 2px solid #fab005 !important; }
-        .note-text { color: #666; font-style: italic; display: block; margin-top: 5px; font-size: 11px; }
+        .setup-box { background: rgba(0, 122, 255, 0.05); border-radius: 15px; padding: 15px; margin-bottom: 20px; text-align: left; }
+        .setup-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; }
+        select, input[type="number"] { padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
+
+        .game-info { display: flex; justify-content: space-between; align-items: center; background: #eee; padding: 10px 20px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; }
+        .problem { font-size: 44px; font-weight: 900; margin: 30px 0; }
+        .answer-box { display: inline-block; width: 90px; height: 55px; background: rgba(0,122,255,0.1); border-radius: 12px; line-height: 55px; vertical-align: middle; }
+        .feedback { height: 24px; margin-bottom: 20px; font-weight: bold; }
+
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .key { background: #f0f0f0; border: none; border-radius: 12px; padding: 18px; font-size: 22px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .key:active { background: #ddd; }
+        .key.blue { background: var(--blue); color: white; }
+        .key.red { background: rgba(255,59,48,0.1); color: #FF3B30; }
+
+        .btn-main { width: 100%; padding: 15px; border-radius: 15px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-start { background: var(--blue); color: white; }
+        .btn-stats { background: none; color: var(--blue); font-size: 15px; margin-top: 10px; }
+
+        .hidden { display: none; }
+        
+        /* 기록 모달창 스타일 */
+        #stats-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th, .stats-table td { padding: 12px 5px; border-bottom: 1px solid #eee; text-align: center; font-size: 13px; }
+        .fav-cond { font-size: 11px; color: var(--purple); font-weight: bold; display: block; margin-top: 4px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="loginPage" class="login-box active">
-        <h2 style="text-align:center;">🏫 스마트 실천 계획표</h2>
-        <div style="display:flex; flex-direction:column; gap:10px; max-width:300px; margin: 0 auto;">
-            <input type="text" id="userId" placeholder="이름 (관리자는 '선생님')" style="padding:10px;">
-            <input type="password" id="userPw" placeholder="비밀번호 (초기: 1234)" style="padding:10px;">
-            <button class="btn-primary" onclick="login()">로그인</button>
+<div id="app">
+    <div id="view-start">
+        <h1>🚀 뺄셈 기록 도전</h1>
+        <div class="stats-summary">
+            <div class="stat-item"><span>오늘 완주</span><b id="today-count">0회</b></div>
+            <div class="stat-item"><span>오늘 평균</span><b id="today-avg">-</b></div>
+            <div class="stat-item"><span>오늘 최고</span><b id="today-best">-</b></div>
+        </div>
+        <div class="setup-box">
+            <div class="setup-row">
+                <label>빼는 수:</label>
+                <select id="subtrahend" onchange="updateGlobalBest()">
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                    <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                </select>
+            </div>
+            <div class="setup-row">
+                <label>최대 범위:</label>
+                <input type="number" id="max-range" value="10" min="2" onchange="updateGlobalBest()">
+            </div>
+            <div id="global-best-text" style="color:var(--purple); font-weight:bold; font-size:13px; text-align:center;"></div>
+        </div>
+        <button class="btn-main btn-start" onclick="startGame()">도전 시작!</button>
+        <button class="btn-stats" onclick="toggleStats(true)">💾 모든 기록 & 최애 조건 보기</button>
+    </div>
+
+    <div id="view-game" class="hidden">
+        <div class="game-info">
+            <span id="progress">진행: 0 / 20</span>
+            <span id="timer">0.0s</span>
+        </div>
+        <div class="problem">
+            <span id="q-text">5 - 1 =</span>
+            <div class="answer-box" id="user-answer">?</div>
+        </div>
+        <div class="feedback" id="feedback"></div>
+        <div class="keypad">
+            <script>
+                for(let i=1; i<=9; i++) document.write(`<button class="key" onclick="press('${i}')">${i}</button>`);
+            </script>
+            <button class="key red" onclick="press('C')">C</button>
+            <button class="key" onclick="press('0')">0</button>
+            <button class="key blue" onclick="press('OK')">확인</button>
         </div>
     </div>
 
-    <div id="studentPage" class="app-content">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2 id="welcomeMsg"></h2>
-            <button class="btn-gray" onclick="logout()">로그아웃</button>
+    <div id="view-result" class="hidden">
+        <h1 style="color:var(--orange)">🎊 20문제 완주! 🎊</h1>
+        <div style="background:rgba(0,122,255,0.05); padding:30px; border-radius:20px; margin-bottom:20px">
+            <div id="final-time" style="font-size:40px; font-weight:900">0.00초</div>
+            <div id="new-record" style="color:var(--purple); font-weight:bold; margin-top:10px" class="hidden">👑 역대 신기록입니다!</div>
         </div>
-        <div style="margin: 20px 0; display:flex; gap:10px;">
-            <input type="text" id="newTask" placeholder="새 실천 목표 추가" style="flex:1; padding:10px;">
-            <button class="btn-primary" onclick="addTask()">추가</button>
-        </div>
-        <table id="studentTable"><thead id="studentHead"></thead><tbody id="studentBody"></tbody></table>
-        
-        <div style="margin-top:30px; padding:15px; background:#f8f9fa; border-radius:8px;">
-            <h4>🔐 비밀번호 변경</h4>
-            <input type="password" id="newPw" placeholder="새 비밀번호" style="padding:8px;">
-            <button class="btn-gray" onclick="changePassword()">변경하기</button>
-        </div>
-    </div>
-
-    <div id="teacherPage" class="app-content">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2>👨‍🏫 관리자 대시보드</h2>
-            <button class="btn-gray" onclick="logout()">로그아웃</button>
-        </div>
-        <div id="teacherView"></div>
+        <button class="btn-main btn-start" style="background:#34C759" onclick="goHome()">확인</button>
     </div>
 </div>
 
+<div id="stats-modal" class="hidden">
+    <div class="modal-header">
+        <h2 style="margin:0">📊 전체 기록 분석</h2>
+        <button onclick="toggleStats(false)" style="border:none; background:none; font-size:24px; cursor:pointer">✕</button>
+    </div>
+    <table class="stats-table">
+        <thead>
+            <tr><th>날짜</th><th>횟수</th><th>평균/최고</th><th>가장 많이 한 조건</th></tr>
+        </thead>
+        <tbody id="stats-body"></tbody>
+    </table>
+</div>
+
 <script>
-    const todayStr = new Date().toISOString().split('T')[0];
-    let currentUser = "";
+    let questionCount = 0;
+    let timeElapsed = 0;
+    let timerInterval;
+    let currentMinuend, currentSubtrahend;
+    let userAnswer = "";
+    let isPlaying = false;
 
-    function getWeek() {
-        let arr = [];
-        for(let i=0; i<7; i++) {
-            let d = new Date(); d.setDate(d.getDate() + i);
-            arr.push(d.toISOString().split('T')[0]);
+    const BEST_KEY = "best_records_v7";
+    const LOG_KEY = "session_logs_v7"; // V7: 조건 데이터를 포함한 새로운 저장 방식
+
+    window.onload = () => {
+        updateSummary();
+        updateGlobalBest();
+    };
+
+    function startGame() {
+        const sub = parseInt(document.getElementById('subtrahend').value);
+        const max = parseInt(document.getElementById('max-range').value);
+        if(max <= sub) return alert("최대 범위는 빼는 수보다 커야 합니다.");
+        
+        currentSubtrahend = sub;
+        questionCount = 0;
+        timeElapsed = 0;
+        isPlaying = true;
+        
+        showView('view-game');
+        nextProblem();
+        
+        timerInterval = setInterval(() => {
+            timeElapsed += 0.1;
+            document.getElementById('timer').innerText = timeElapsed.toFixed(1) + 's';
+        }, 100);
+    }
+
+    function nextProblem() {
+        const max = parseInt(document.getElementById('max-range').value);
+        currentMinuend = Math.floor(Math.random() * (max - currentSubtrahend + 1)) + currentSubtrahend;
+        userAnswer = "";
+        document.getElementById('q-text').innerText = `${currentMinuend} - ${currentSubtrahend} =`;
+        document.getElementById('user-answer').innerText = "?";
+        document.getElementById('progress').innerText = `진행: ${questionCount} / 20`;
+        document.getElementById('feedback').innerText = "";
+    }
+
+    function press(key) {
+        if(key === 'C') {
+            userAnswer = "";
+            document.getElementById('user-answer').innerText = "?";
+            return;
+        } else if(key === 'OK') {
+            checkAnswer();
+            return;
+        } else {
+            if(userAnswer.length < 3) userAnswer += key;
         }
-        return arr;
-    }
-    const weekDates = getWeek();
+        document.getElementById('user-answer').innerText = userAnswer;
 
-    function getDB() { return JSON.parse(localStorage.getItem('eduSys_v3')) || { users: {}, passwords: {} }; }
-    function saveDB(db) { localStorage.setItem('eduSys_v3', JSON.stringify(db)); }
-
-    function login() {
-        const id = document.getElementById('userId').value;
-        const pw = document.getElementById('userPw').value;
-        const db = getDB();
-        if(!id) return alert("이름을 입력하세요.");
-        if(!db.passwords[id]) db.passwords[id] = "1234";
-        if(db.passwords[id] !== pw) return alert("비밀번호가 틀립니다.");
-
-        currentUser = id;
-        document.getElementById('loginPage').classList.remove('active');
-        if(id === "선생님") renderTeacherView(); else renderStudentView();
+        // 자동 정답 체크
+        const correct = currentMinuend - currentSubtrahend;
+        if (parseInt(userAnswer) === correct) {
+            document.getElementById('feedback').innerText = "정답!";
+            document.getElementById('feedback').style.color = "#34C759";
+            questionCount++;
+            setTimeout(() => {
+                if(questionCount >= 20) finishGame();
+                else nextProblem();
+            }, 100);
+        }
     }
 
-    // --- 학생용 로직 ---
-    function renderStudentView() {
-        document.getElementById('studentPage').classList.add('active');
-        document.getElementById('welcomeMsg').innerText = `👋 ${currentUser} 학생`;
-        let headHtml = `<tr><th>목표</th>`;
-        weekDates.forEach(d => headHtml += `<th class="${d===todayStr?'today-highlight':''}">${d.slice(5)}</th>`);
-        document.getElementById('studentHead').innerHTML = headHtml + `</tr>`;
+    function checkAnswer() {
+        const correct = currentMinuend - currentSubtrahend;
+        if(parseInt(userAnswer) !== correct) {
+            document.getElementById('feedback').innerText = "틀렸어요!";
+            document.getElementById('feedback').style.color = "#FF3B30";
+            userAnswer = "";
+            document.getElementById('user-answer').innerText = "?";
+        }
+    }
 
-        const db = getDB();
-        const tasks = db.users[currentUser] || [];
-        let bodyHtml = "";
-        tasks.forEach((t, tIdx) => {
-            bodyHtml += `<tr><td><strong>${t.title}</strong></td>`;
-            weekDates.forEach(d => {
-                const rec = t.records[d] || {done:false, note:""};
-                const isToday = d === todayStr;
-                bodyHtml += `<td class="${isToday?'today-highlight':''}">
-                    <input type="checkbox" ${rec.done?'checked':''} ${!isToday?'disabled':''} onchange="updateRecord(${tIdx},'${d}','done',this.checked)">
-                    <br><input type="text" value="${rec.note}" ${!isToday?'disabled':''} style="width:70px; font-size:10px;" onblur="updateRecord(${tIdx},'${d}','note',this.value)">
-                </td>`;
+    function finishGame() {
+        clearInterval(timerInterval);
+        isPlaying = false;
+        const sub = currentSubtrahend;
+        const max = parseInt(document.getElementById('max-range').value);
+        const recordKey = `sub_${sub}_max_${max}`;
+        const finalTime = parseFloat(timeElapsed.toFixed(2));
+        
+        // 1. 최고 기록 저장
+        let bests = JSON.parse(localStorage.getItem(BEST_KEY) || "{}");
+        let isNewRecord = false;
+        if(!bests[recordKey] || finalTime < bests[recordKey]) {
+            bests[recordKey] = finalTime;
+            localStorage.setItem(BEST_KEY, JSON.stringify(bests));
+            isNewRecord = true;
+        }
+
+        // 2. 일일 로그 저장 (조건 정보 포함)
+        const today = new Date().toISOString().split('T')[0];
+        let logs = JSON.parse(localStorage.getItem(LOG_KEY) || "{}");
+        if(!logs[today]) logs[today] = [];
+        logs[today].push({
+            time: finalTime,
+            sub: sub,
+            max: max
+        });
+        localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+
+        document.getElementById('final-time').innerText = finalTime.toFixed(2) + '초';
+        document.getElementById('new-record').className = isNewRecord ? "" : "hidden";
+        showView('view-result');
+    }
+
+    function updateSummary() {
+        const today = new Date().toISOString().split('T')[0];
+        const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "{}");
+        const todaySessions = logs[today] || [];
+        
+        document.getElementById('today-count').innerText = todaySessions.length + '회';
+        if(todaySessions.length > 0) {
+            const times = todaySessions.map(s => s.time);
+            const avg = times.reduce((a,b)=>a+b, 0) / times.length;
+            const best = Math.min(...times);
+            document.getElementById('today-avg').innerText = avg.toFixed(2) + 's';
+            document.getElementById('today-best').innerText = best.toFixed(2) + 's';
+        } else {
+            document.getElementById('today-avg').innerText = '-';
+            document.getElementById('today-best').innerText = '-';
+        }
+    }
+
+    function updateGlobalBest() {
+        const sub = document.getElementById('subtrahend').value;
+        const max = document.getElementById('max-range').value;
+        const bests = JSON.parse(localStorage.getItem(BEST_KEY) || "{}");
+        const best = bests[`sub_${sub}_max_${max}`];
+        document.getElementById('global-best-text').innerText = best ? `현재 설정 역대 최고: ${best}s` : "";
+    }
+
+    function toggleStats(show) {
+        if(show) {
+            const body = document.getElementById('stats-body');
+            body.innerHTML = "";
+            const logs = JSON.parse(localStorage.getItem(LOG_KEY) || "{}");
+            
+            // 모든 날짜 역순 정렬
+            const sortedDates = Object.keys(logs).sort().reverse();
+            
+            if (sortedDates.length === 0) {
+                body.innerHTML = "<tr><td colspan='4'>아직 기록이 없습니다.</td></tr>";
+            }
+
+            sortedDates.forEach(date => {
+                const sessions = logs[date];
+                const times = sessions.map(s => s.time);
+                const avg = (times.reduce((a,b)=>a+b,0)/times.length).toFixed(2);
+                const best = Math.min(...times).toFixed(2);
+                
+                // 최애 조건 분석 (가장 많이 한 sub와 max 조합)
+                const counts = {};
+                sessions.forEach(s => {
+                    const key = `-${s.sub} (Max ${s.max})`;
+                    counts[key] = (counts[key] || 0) + 1;
+                });
+                const favCondition = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+
+                body.innerHTML += `
+                    <tr>
+                        <td><b>${date.slice(5)}</b></td>
+                        <td>${sessions.length}회</td>
+                        <td><span style="color:var(--blue)">${avg}s</span><br><span style="color:var(--orange); font-weight:bold">${best}s</span></td>
+                        <td><span class="fav-cond">빼는수 ${favCondition}</span></td>
+                    </tr>`;
             });
-            bodyHtml += `</tr>`;
-        });
-        document.getElementById('studentBody').innerHTML = bodyHtml || `<tr><td colspan="8">목표를 등록해 주세요.</td></tr>`;
+            document.getElementById('stats-modal').classList.remove('hidden');
+        } else {
+            document.getElementById('stats-modal').classList.add('hidden');
+        }
     }
 
-    function updateRecord(tIdx, date, field, val) {
-        const db = getDB();
-        if(!db.users[currentUser][tIdx].records[date]) db.users[currentUser][tIdx].records[date] = {done:false, note:""};
-        db.users[currentUser][tIdx].records[date][field] = val;
-        saveDB(db);
+    function showView(id) {
+        ['view-start', 'view-game', 'view-result'].forEach(v => document.getElementById(v).classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
     }
 
-    function addTask() {
-        const val = document.getElementById('newTask').value; if(!val) return;
-        const db = getDB(); if(!db.users[currentUser]) db.users[currentUser] = [];
-        db.users[currentUser].push({title:val, records:{}});
-        saveDB(db); document.getElementById('newTask').value = ""; renderStudentView();
+    function goHome() {
+        updateSummary();
+        updateGlobalBest();
+        showView('view-start');
     }
-
-    function changePassword() {
-        const np = document.getElementById('newPw').value; if(np.length < 2) return alert("새 비밀번호를 입력하세요.");
-        const db = getDB(); db.passwords[currentUser] = np; saveDB(db); alert("변경되었습니다.");
-    }
-
-    // --- 교사용(관리자) 로직 ---
-    function renderTeacherView() {
-        document.getElementById('teacherPage').classList.add('active');
-        const db = getDB();
-        const view = document.getElementById('teacherView');
-        let html = "";
-        const students = Object.keys(db.users).filter(n => n !== "선생님");
-
-        if(students.length === 0) { view.innerHTML = "<p style='text-align:center; padding:50px;'>등록된 학생이 없습니다.</p>"; return; }
-
-        students.forEach(name => {
-            html += `
-            <div class="student-card">
-                <div class="student-header">
-                    <span>👤 <strong>${name}</strong> 학생</span>
-                    <div>
-                        <button class="btn-success" style="font-size:11px;" onclick="resetPw('${name}')">비번초기화</button>
-                        <button class="btn-danger" style="font-size:11px;" onclick="deleteAccount('${name}')">계정삭제</button>
-                    </div>
-                </div>
-                <table>
-                    <thead><tr><th>목표</th>${weekDates.map(d => `<th>${d.slice(5)}</th>`).join('')}</tr></thead>
-                    <tbody>
-                        ${db.users[name].map(t => `
-                            <tr>
-                                <td>${t.title}</td>
-                                ${weekDates.map(d => {
-                                    const r = t.records[d] || {done:false, note:""};
-                                    return `<td>${r.done?'✅':'❌'}<br><span class="note-text">${r.note||'-'}</span></td>`;
-                                }).join('')}
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>`;
-        });
-        view.innerHTML = html;
-    }
-
-    function resetPw(name) {
-        if(!confirm(`${name} 학생의 비밀번호를 1234로 초기화할까요?`)) return;
-        const db = getDB(); db.passwords[name] = "1234"; saveDB(db); alert("초기화되었습니다.");
-    }
-
-    function deleteAccount(name) {
-        if(!confirm(`${name} 학생의 모든 데이터와 계정을 삭제하시겠습니까? 복구할 수 없습니다.`)) return;
-        const db = getDB();
-        delete db.users[name];
-        delete db.passwords[name];
-        saveDB(db);
-        renderTeacherView();
-    }
-
-    function logout() { location.reload(); }
 </script>
 </body>
 </html>
